@@ -272,29 +272,22 @@
 
 </div>
 
-<script src="questions.js"></script>
+<script>window.QUESTION_DATA = window.QUESTION_DATA || [];</script>
 <script>
 "use strict";
 (function(){
   // ---------- data helpers ----------
-  var BANKS = Array.isArray(window.QUESTION_DATA) ? window.QUESTION_DATA : [];
-  var TEXT_BANKS = BANKS.filter(function(b){ return b && b.type !== "illustration"; });
-  var ILLUST_BANKS = BANKS.filter(function(b){ return b && b.type === "illustration"; });
-
-  // id -> {q, bank} index for all text questions and illustration questions
-  var QINDEX = {};
-  BANKS.forEach(function(b){
-    (b.questions||[]).forEach(function(q){
-      QINDEX[q.id] = { q:q, bank:b };
-    });
-  });
+  function BANKS(){ return Array.isArray(window.QUESTION_DATA) ? window.QUESTION_DATA : []; }
+  function TEXT_BANKS(){ return BANKS().filter(function(b){ return b && b.type !== "illustration"; }); }
+  function ILLUST_BANKS(){ return BANKS().filter(function(b){ return b && b.type === "illustration"; }); }
+  function buildQINDEX(){ var idx={}; BANKS().forEach(function(b){ (b.questions||[]).forEach(function(q){ idx[q.id]={q:q,bank:b}; }); }); return idx; }
 
   function allTextQuestions(){
-    var out=[]; TEXT_BANKS.forEach(function(b){ (b.questions||[]).forEach(function(q){ out.push({q:q, bank:b}); }); });
+    var out=[]; TEXT_BANKS().forEach(function(b){ (b.questions||[]).forEach(function(q){ out.push({q:q, bank:b}); }); });
     return out;
   }
   function allIllustQuestions(){
-    var out=[]; ILLUST_BANKS.forEach(function(b){ (b.questions||[]).forEach(function(q){ out.push({q:q, bank:b}); }); });
+    var out=[]; ILLUST_BANKS().forEach(function(b){ (b.questions||[]).forEach(function(q){ out.push({q:q, bank:b}); }); });
     return out;
   }
   function shuffle(a){ a=a.slice(); for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)); var t=a[i];a[i]=a[j];a[j]=t;} return a; }
@@ -689,13 +682,13 @@
 
   function openCategories(){
     var list=document.getElementById("catList");
-    if(!TEXT_BANKS.length){
+    if(!TEXT_BANKS().length){
       list.innerHTML='<div class="empty"><div class="e">😌</div><p>カテゴリがありません。</p></div>';
       go("categories"); return;
     }
     // group banks by category (merge same category across files)
     var map={};
-    TEXT_BANKS.forEach(function(b){
+    TEXT_BANKS().forEach(function(b){
       var c=b.category||"unknown";
       if(!map[c]) map[c]={label:b.categoryLabel||c, count:0};
       map[c].count+=(b.questions||[]).length;
@@ -715,6 +708,7 @@
   }
 
   function startReview(){
+    var QINDEX=buildQINDEX();
     var w=load(K.wrong,{}); var t=load(K.tabun,[]);
     var ids={};
     Object.keys(w).forEach(function(id){ ids[id]=(w[id]||1); }); // weight = wrong count
@@ -740,8 +734,7 @@
   //  STATS
   // ============================================================
   // category label lookup
-  var CATLABEL={};
-  BANKS.forEach(function(b){ if(b.category) CATLABEL[b.category]=b.categoryLabel||b.category; });
+  function CATLABEL(){ var m={}; BANKS().forEach(function(b){ if(b.category) m[b.category]=b.categoryLabel||b.category; }); return m; }
 
   function openStats(){
     var s=load(K.stats,{});
@@ -756,7 +749,7 @@
         var o=s[c]; var p=o.total?Math.round(o.correct/o.total*100):0;
         var cls=p>=80?"sb-g":(p>=60?"sb-y":"sb-r");
         var weak=(p<60 && o.total>=3);
-        html+='<div class="statrow"><div class="top"><b>'+esc(CATLABEL[c]||c)+(weak?'<span class="badge">苦手</span>':'')+'</b>'
+        html+='<div class="statrow"><div class="top"><b>'+esc(CATLABEL()[c]||c)+(weak?'<span class="badge">苦手</span>':'')+'</b>'
             +'<span class="pct">'+p+'%（'+o.correct+'/'+o.total+'）</span></div>'
             +'<div class="statbar"><i class="'+cls+'" style="width:'+p+'%"></i></div></div>';
       });
@@ -798,6 +791,14 @@
     confirmFinishMock:confirmFinishMock, confirmQuitMock:confirmQuitMock, toggleRev:toggleRev,
     resetData:resetData
   };
+})();
+</script>
+
+<script>
+(function(){
+  var files=["bank0.json","bank1.json","bank2.json","bank3.json","bank4.json","bank5.json"];
+  Promise.all(files.map(function(f){return fetch(f).then(function(r){return r.json();}).catch(function(){return null;});}))
+  .then(function(arr){ window.QUESTION_DATA = arr.filter(Boolean); });
 })();
 </script>
 </body>
